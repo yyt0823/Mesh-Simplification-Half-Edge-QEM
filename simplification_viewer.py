@@ -301,6 +301,7 @@ class SimplificationViewer(QtOpenGL.QGLWidget):
             edge = EdgeCollapseData(he)
             self.sorted_edge_list.add(edge)
 
+    #TODO obj4
     def collapse_will_be_bad(self, he: HalfEdge) -> bool:
         """ check if collapsing this half-edge will create problems (e.g., more than 2 common verts in the 1-rings) """
 
@@ -316,12 +317,11 @@ class SimplificationViewer(QtOpenGL.QGLWidget):
             # Traverse around the vertex via (next -> twin)
             while True:
                 tail_v = current.tail()
-                if tail_v is not None:
-                    neighbors.add(tail_v.index)
+                neighbors.add(tail_v.index)
                 # Advance to next half-edge in the 1-ring
+                current = current.next.twin
                 if current.next.twin is start:
                     break
-                current = current.next.twin
             return neighbors
 
         v_head = he.head
