@@ -1,3 +1,4 @@
+from doctest import debug
 import trimesh
 import numpy as np
 from pathlib import Path
@@ -187,6 +188,7 @@ class SimplificationViewer(QtOpenGL.QGLWidget):
         self.update_UI_callback()  # updates the LOD slider
 
     def update_half_edge_geometry(self):
+        print("-------",self.current_he)
         v0 = self.current_he.next.next.head.pos
         v1 = self.current_he.head.pos
         v2 = self.current_he.next.head.pos
@@ -351,6 +353,68 @@ class SimplificationViewer(QtOpenGL.QGLWidget):
         # the index buffer needs to be updated to correctly draw the mesh after the 
         # collapse, and that is done in objective 3 below.
 
+        # arg: half edge , new vertex vstar, cost
+        #step 1 find the 4 outer edge
+        oe1 = he.next.twin
+        oe2 = (he.next).next.twin
+        oe3 = he.twin.next.twin
+        oe4 = (he.twin.next).next.twin
+        # set them to be twins
+        oe1.twin = oe2
+        oe2.twin = oe1
+        oe3.twin = oe4
+        oe4.twin = oe3
+
+        # step 2: fix vertex that store the deleted edge
+        # find vl and vr and set assign their he.twin to their he
+        v1 = he.next.head
+        v2 = he.twin.next.head
+        v1.he = self.find_inward_edge(he.next.twin)
+        v2.he = self.find_inward_edge(he.twin.next.twin)
+
+        # step 3 : create new vertex and link use the new_vertex above
+        
+        start = he.next.twin
+        current = start
+        while True:
+            
+            current.head = new_vertex    
+            current = current.next.twin
+            if current.next.twin is start:
+                # Process one more time: the current edge before breaking
+                current.head = new_vertex
+                break
+        
+        # Swap removed faces to end of face_objs
+        face1 = he.face
+        face2 = he.twin.face
+        n = len(self.face_objs)
+        pos1 = n - 2 * self.current_LOD - 1
+        pos2 = n - 2 * self.current_LOD - 2
+        
+        # Swap face1
+        idx1 = face1.index
+        if idx1 != pos1:
+            f = self.face_objs[pos1]
+            self.face_objs[idx1], self.face_objs[pos1] = self.face_objs[pos1], self.face_objs[idx1]
+            face1.index, f.index = pos1, idx1
+        
+        # Swap face2 (use current index after first swap)
+        idx2 = face2.index
+        if idx2 != pos2:
+            f = self.face_objs[pos2]
+            self.face_objs[idx2], self.face_objs[pos2] = self.face_objs[pos2], self.face_objs[idx2]
+            face2.index, f.index = pos2, idx2
+    
+        return new_vertex.he
+
+
+    def find_inward_edge(self, he: HalfEdge) -> HalfEdge:
+        current = he
+        while current.next is not he:
+            current = current.next
+        return current
+    
 
 
         # TODO: Objective 6: Maintain the sorted list of edge collapse costs
@@ -383,3 +447,5 @@ class SimplificationViewer(QtOpenGL.QGLWidget):
         # notify the UI that LOD has changed
         self.update_UI_callback()
         return new_vertex.he  # return one of the half-edges with the new vertex as head
+    
+    
