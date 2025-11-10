@@ -395,7 +395,7 @@ class SimplificationViewer(QtOpenGL.QGLWidget):
                     break
             ofs.append(vertices_list)
             current = current.next.twin
-            if current == start:
+            if current.next.twin.next.twin == start:
                 break    
 
        
@@ -536,17 +536,27 @@ class SimplificationViewer(QtOpenGL.QGLWidget):
         old_faces = np.array([]) # Nx3 array of old face indices before the collapse
         new_faces = np.array([]) # Nx3 array of new face indices after the collapse
 
-
         
-        affected_faces = afs
         
+        # affected_faces = afs
+        start = new_vertex.he
+        current = start
+        while True:
+            affected_faces.append(current.face)
+            current = current.next.twin
+            if current == start:
+                break
+        
+        print("this is affect face", affected_faces)
         old_faces = np.array(ofs)
 
         new_edge = new_vertex.he
+        print("this is sthe new edge",new_edge.head, new_edge.tail())
         
         current = new_edge
         while True:
             vcurrent = current
+            print("we are at",vcurrent)
             vertices_list = []
             while True:
                 vertices_list.append(vcurrent.head.index)
@@ -556,13 +566,13 @@ class SimplificationViewer(QtOpenGL.QGLWidget):
                     break
 
             nfs.append(vertices_list)
-            current = current.next.twin
+            current = current.next.twinn
             if current == start:
                 break  
        
 
         
-        print("this is nfs",nfs)
+        
         new_faces = np.array(nfs)
 
 
@@ -582,10 +592,15 @@ class SimplificationViewer(QtOpenGL.QGLWidget):
         self.max_LOD += 1
 
         
-        
+
+        print("NFS",new_faces )
+        print("OFS",ofs)
 
         cr.redo(self.faces) # THIS APPLIES THE COLLAPSE TO THE FACES numpy array for drawing with opengl
-        
+        for i in self.faces:
+            print(i)
+        for i in self.face_objs:
+            print(i.index)
 
         # with everything all hooked up, compute the debug viz data for the new vertex
         new_vertex.compute_debug_viz_data()

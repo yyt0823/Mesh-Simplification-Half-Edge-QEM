@@ -1,8 +1,3 @@
-import enum
-from fcntl import FASYNC
-from operator import truediv
-from re import S
-import tarfile
 import numpy as np
 from pyglm import glm
 
@@ -213,8 +208,10 @@ class CollapseRecord:
         """ Apply this collapse record to the given faces array."""
         for i, f in enumerate(self.affected_faces):
             f.M = None  # invalidate cached model matrix for text rendering
+            print("changing",faces[f.index, :] )
             faces[f.index, :] = self.new_indices[i]
-            print("changing hioadfhosdgfhasiofnasopindfas", f,f.index,self.new_indices[i])
+            print("taking ", i,f, "changing","to",self.new_indices[i])
+            
            
 
     def undo(self, faces: np.ndarray):
@@ -250,20 +247,28 @@ def build_heds(F: np.ndarray, vert_objs: list[Vertex]) -> (list[HalfEdge], list[
         edges[1].next = edges[2]
         edges[2].next = edges[0]
     
-    for edge in he_list:
-        twin = findtwin(edge, he_list)
-        edge.twin = twin 
+    # Second pass: Find and link twin half edges using a dictionary for efficiency
+    edge_dict = {}
+    for he in he_list:
+        tail_idx = he.tail().index
+        head_idx = he.head.index
+        # Use (min, max) as key to handle both directions
+        key = (min(tail_idx, head_idx), max(tail_idx, head_idx))
+        if key not in edge_dict:
+            edge_dict[key] = []
+        edge_dict[key].append(he)
+    
+    # Link twins: for each pair of half edges sharing the same vertices (in opposite directions)
+    for key, edges_with_key in edge_dict.items():
+        if len(edges_with_key) == 2:
+            he1, he2 = edges_with_key
+            # Check which direction each goes and link them as twins
+            if he1.tail().index == he2.head.index and he1.head.index == he2.tail().index:
+                he1.twin = he2
+                he2.twin = he1 
 
 
 
 
 
     return he_list, face_objs
-
-def findtwin(edge:HalfEdge, edgelist: list[HalfEdge]):
-    head = edge.head
-    tail = edge.tail()
-    for e in edgelist:
-        if e is not edge and e.tail() == head and e.head == tail:
-            return e
-    return None
