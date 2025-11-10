@@ -353,6 +353,12 @@ class SimplificationViewer(QtOpenGL.QGLWidget):
         # the index buffer needs to be updated to correctly draw the mesh after the 
         # collapse, and that is done in objective 3 below.
 
+        def find_inward_edge(he: HalfEdge) -> HalfEdge:
+            current = he
+            while current.next is not he:
+                current = current.next
+            return current
+
         # arg: half edge , new vertex vstar, cost
         #step 1 find the 4 outer edge
         oe1 = he.next.twin
@@ -369,15 +375,14 @@ class SimplificationViewer(QtOpenGL.QGLWidget):
         # find vl and vr and set assign their he.twin to their he
         v1 = he.next.head
         v2 = he.twin.next.head
-        v1.he = self.find_inward_edge(he.next.twin)
-        v2.he = self.find_inward_edge(he.twin.next.twin)
+        v1.he = find_inward_edge(he.next.twin)
+        v2.he = find_inward_edge(he.twin.next.twin)
 
         # step 3 : create new vertex and link use the new_vertex above
         
         start = he.next.twin
         current = start
         while True:
-            
             current.head = new_vertex    
             current = current.next.twin
             if current.next.twin is start:
@@ -406,14 +411,10 @@ class SimplificationViewer(QtOpenGL.QGLWidget):
             self.face_objs[idx2], self.face_objs[pos2] = self.face_objs[pos2], self.face_objs[idx2]
             face2.index, f.index = pos2, idx2
     
-        return new_vertex.he
+        
 
 
-    def find_inward_edge(self, he: HalfEdge) -> HalfEdge:
-        current = he
-        while current.next is not he:
-            current = current.next
-        return current
+        
     
 
 
@@ -426,6 +427,12 @@ class SimplificationViewer(QtOpenGL.QGLWidget):
 
 
         # TODO: Objective 3: Undo / Redo by making and collecting collapse records 
+        # helper
+        def add_affected_face(he: HalfEdge):
+            affected_faces.append(he.face)
+            print(he)
+
+            
 
         # TODO: You need to fill in the correct data for the CollapseRecord here
         affected_faces = [] # list of N Face objects affected by this collapse (typically around 8 faces)
