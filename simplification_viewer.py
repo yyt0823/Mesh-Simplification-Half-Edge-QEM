@@ -314,8 +314,11 @@ class SimplificationViewer(QtOpenGL.QGLWidget):
             
             start = v.he
             current = start
+
+            
             # Traverse around the vertex via (next -> twin)
             while True:
+                print("debugging iteration loop forever -----------", current)
                 tail_v = current.tail()
                 neighbors.add(tail_v.index)
                 # Advance to next half-edge in the 1-ring
