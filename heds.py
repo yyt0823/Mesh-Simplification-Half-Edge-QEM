@@ -92,19 +92,18 @@ class Face:
 
 
 def compute_face_quadric(face: Face) -> glm.mat4:
-    """Compute and return the quadric error matrix for the given triangular face."""
+    """Compute and return the quadric error matrix K = pp^T for the given triangular face.
+    The plane equation is p = [a, b, c, d]^T where ax + by + cz + d = 0.
+    For a plane with normal n and point v0: n·v + d = 0, so d = -n·v0."""
     he0 = face.he
-    he1 = he0.next
-    he2 = he1.next
     v0 = he0.head.pos
-    v1 = he1.head.pos
-    v2 = he2.head.pos
-    n = glm.cross(v1 - v0, v2 - v0)
-    if glm.length(n) < 1e-12:
-        return glm.mat4(0)
+
+    n = face.get_normal()
     n = glm.normalize(n)
     d = -glm.dot(n, v0)
+    # Plane vector: p = [nx, ny, nz, d]^T
     plane = glm.vec4(n.x, n.y, n.z, d)
+    # Quadric: K = pp^T (outer product)
     return glm.outerProduct(plane, plane)
 
 
@@ -132,9 +131,9 @@ class Vertex:
 
         self.text_pos = None  # Data for debug text
         self.text_scale = None
-
     def compute_Q(self):
-        """ Compute the quadric for this vertex from the surrounding faces.
+        """ Compute the quadric Q for this vertex by summing quadrics K from all adjacent faces.
+        Q = Σ K_i where K_i is the quadric of face i adjacent to this vertex.
         It gets stored in the parameter self.Q"""
 
         self.Q = glm.mat4(0)
@@ -142,16 +141,14 @@ class Vertex:
         if self.he is None:
             return
 
+        # Traverse around the vertex: start with a half-edge that has this vertex as head
+        # Then move to the next face via next.twin
         start = self.he
-        h = start
-        visited = 0
+        current = start
         while True:
-            self.Q += compute_face_quadric(h.face)
-            if h.next is None or h.next.twin is None:
-                break
-            h = h.next.twin
-            visited += 1
-            if h == start or visited > 10000:
+            self.Q += compute_face_quadric(current.face)
+            current = current.next.twin
+            if current == start:
                 break
 
 
@@ -225,6 +222,7 @@ class EdgeCollapseData:
         Q_np = mat4_to_numpy(self.Q)
         A = Q_np[:3, :3]
         b = Q_np[:3, 3]
+        #print(A,"\n",b,"\n",Q_np)
 
         # Attempt to solve A * v = -b
         v_candidates = []
@@ -236,9 +234,9 @@ class EdgeCollapseData:
                 solved = True
             except np.linalg.LinAlgError:
                 solved = False
-
+        # deficiency handles
         if not solved:
-            # Use pseudoinverse as fallback
+            # Use pseudoinverse 
             v_solution = -np.linalg.pinv(A) @ b
             v_candidates.append(v_solution)
 
