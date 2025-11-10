@@ -388,6 +388,50 @@ class SimplificationViewer(QtOpenGL.QGLWidget):
         # collapse, and that is done in objective 3 below.
 
 
+        """
+        Obj 6 block 1
+        here we make a get_all_adj_edges that return the ring1 neighbour edges
+        these edges are the will be removed edge
+
+        we will then use this to delete from the sortedlist
+        """
+        def get_all_adj_edges(he:HalfEdge):
+            hes = set()
+            start = he.next.twin
+            current = start
+            while True:
+                hes.add(current)
+                current = current.next.twin
+                if current == start:
+                    break
+            start = he.twin.next.twin
+            current = start
+            while True:
+                hes.add(current)
+                current = current.next.twin
+                if current == start:
+                    break
+            return hes
+        
+        edges_to_remove = get_all_adj_edges(he)
+
+        for edge in edges_to_remove:
+            data = edge.edge_collapse_data
+            if data is not None:  # Only remove if it exists
+                self.sorted_edge_list.discard(data)  # Use discard() instead of remove()
+                print("discaring")
+                # Clear the edge_collapse_data reference from half-edges
+                edge.edge_collapse_data = None
+                if edge.twin is not None:
+                    edge.twin.edge_collapse_data = None
+            
+       
+       
+       
+        # block end ---------------------------------------------------------------
+
+
+
         # objective 3 tracing
         afs = []
         ofs = []
@@ -528,6 +572,18 @@ class SimplificationViewer(QtOpenGL.QGLWidget):
         # so we need to do some careful work to make sure the sorted list is updated to
         # have updated edge collapse data for the half-edges around the new vertex.
         # (best to remove all, and then re-add newly computed versions)
+         # Remove all collected EdgeCollapseData from sorted_edge_list
+        """
+        Obj 6 block 2
+        here we call the get_all_adj_edges with the new_vertex to get the new added edge
+
+        we will then compute the EdgeCollapseData using the list and add to the sorted list
+        """
+        new_adj_edges = get_all_adj_edges(new_vertex.he)
+        for edge in new_adj_edges:
+            self.sorted_edge_list.add(EdgeCollapseData(edge))
+            
+
         
 
 

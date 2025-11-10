@@ -132,10 +132,8 @@ class Vertex:
         self.text_pos = None  # Data for debug text
         self.text_scale = None
     def compute_Q(self):
-        """ Compute the quadric Q for this vertex by summing quadrics K from all adjacent faces.
-        Q = Σ K_i where K_i is the quadric of face i adjacent to this vertex.
-        It gets stored in the parameter self.Q"""
-
+        
+        # just sum up each face K
         self.Q = glm.mat4(0)
 
         if self.he is None:
