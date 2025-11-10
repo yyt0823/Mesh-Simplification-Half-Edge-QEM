@@ -214,7 +214,8 @@ class CollapseRecord:
         for i, f in enumerate(self.affected_faces):
             f.M = None  # invalidate cached model matrix for text rendering
             faces[f.index, :] = self.new_indices[i]
-            print("xxxxxx",faces[f.index, :],"xxxxxxx",self.new_indices[i])
+            print("changing hioadfhosdgfhasiofnasopindfas", f,f.index,self.new_indices[i])
+           
 
     def undo(self, faces: np.ndarray):
         """ Undo this collapse record on the given faces array. """
