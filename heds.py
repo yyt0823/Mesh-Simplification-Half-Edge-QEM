@@ -236,19 +236,21 @@ class EdgeCollapseData:
                 solved = False
         # deficiency handles
         if not solved:
-            # Use pseudoinverse 
+            # Use pseudoinverse , which will always give an solution
             v_solution = -np.linalg.pinv(A) @ b
             v_candidates.append(v_solution)
 
-        # Also consider endpoints and midpoint as fallback candidates
+        # add endpoints and midpoint as fallback candidates
         head_pos = np.array((v_head.pos.x, v_head.pos.y, v_head.pos.z), dtype=float)
         tail_pos = np.array((v_tail.pos.x, v_tail.pos.y, v_tail.pos.z), dtype=float)
         midpoint = 0.5 * (head_pos + tail_pos)
         v_candidates.extend([head_pos, tail_pos, midpoint])
 
+        # function to calculate the cost by multiplying the vTQv
         def evaluate_cost(Q_matrix: np.ndarray, position: np.ndarray) -> float:
+            #to homogenous
             vec = np.append(position, 1.0)
-            return float(vec @ Q_matrix @ vec)
+            return float(vec.T @ Q_matrix @ vec)
 
         best_pos = None
         best_cost = np.inf
