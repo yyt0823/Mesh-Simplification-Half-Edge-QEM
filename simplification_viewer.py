@@ -89,6 +89,7 @@ class SimplificationViewer(QtOpenGL.QGLWidget):
             self.vao.render()  # HEDS not built yet, just draw everything!
         else:
             self.vao.render( vertices = 3 * (len(self.face_objs) - 2*self.current_LOD) )# skip two faces for each LOD    
+
         self.ctx.wireframe = False
         self.prog_tris['u_use_lighting'].value = True
         # as selected in the UI, draw half edge, vertex IDs, face IDs
@@ -353,6 +354,59 @@ class SimplificationViewer(QtOpenGL.QGLWidget):
         # the index buffer needs to be updated to correctly draw the mesh after the 
         # collapse, and that is done in objective 3 below.
 
+
+        # objective 3 tracing
+        afs = []
+        ofs = []
+        nfs = []
+
+            
+        start = he.next.twin
+        current = start
+        # head
+        while True:
+            face = current.face
+            afs.append(face)
+            vcurrent = current
+            vertices_list = []
+            while True:
+                vertices_list.append(vcurrent.head.index)
+                vcurrent = vcurrent.next
+                if vcurrent == current:
+                    break
+            ofs.append(vertices_list)
+            current = current.next.twin
+            if current.next.twin.next.twin == start:
+                break    
+        
+        # tail
+
+        start = he.twin.next.twin
+        current = start
+        while True:
+            face = current.face
+            afs.append(face)
+            vcurrent = current
+            vertices_list = []
+            while True:
+                vertices_list.append(vcurrent.head.index)
+                vcurrent = vcurrent.next
+                if vcurrent == current:
+                    break
+            ofs.append(vertices_list)
+            current = current.next.twin
+            if current == start:
+                break    
+
+       
+            
+
+
+
+
+        
+
+
         def find_inward_edge(he: HalfEdge) -> HalfEdge:
             current = he
             while current.next is not he:
@@ -396,23 +450,53 @@ class SimplificationViewer(QtOpenGL.QGLWidget):
         n = len(self.face_objs)
         pos1 = n - 2 * self.current_LOD - 1
         pos2 = n - 2 * self.current_LOD - 2
+        face3 = self.face_objs[pos1]
+        face4 = self.face_objs[pos2]
         
-        # Swap face1
+        # Swap face1 with face3 (both in face_objs and self.faces)
         idx1 = face1.index
-        if idx1 != pos1:
-            f = self.face_objs[pos1]
-            self.face_objs[idx1], self.face_objs[pos1] = self.face_objs[pos1], self.face_objs[idx1]
-            face1.index, f.index = pos1, idx1
-        
-        # Swap face2 (use current index after first swap)
+        self.face_objs[idx1], self.face_objs[pos1] = face3, face1
+        face1.index = pos1
+        face3.index = idx1
+        # Swap corresponding rows in self.faces
+        self.faces[idx1], self.faces[pos1] = self.faces[pos1].copy(), self.faces[idx1].copy()
+
+        # Swap face2 with face4 (both in face_objs and self.faces)
         idx2 = face2.index
-        if idx2 != pos2:
-            f = self.face_objs[pos2]
-            self.face_objs[idx2], self.face_objs[pos2] = self.face_objs[pos2], self.face_objs[idx2]
-            face2.index, f.index = pos2, idx2
-    
+        self.face_objs[idx2], self.face_objs[pos2] = face4, face2
+        face2.index = pos2
+        face4.index = idx2
+        # Swap corresponding rows in self.faces
+        self.faces[idx2], self.faces[pos2] = self.faces[pos2].copy(), self.faces[idx2].copy()
+
         
 
+
+        swaped = []
+        new_face_he = self.face_objs[face3.index].he
+        new_vertices_list = []
+        current = new_face_he
+
+        while True:
+            new_vertices_list.append(current.head.index)
+            current = current.next
+            if current == new_face_he:
+                break
+        swaped.append(new_vertices_list)
+            
+
+        new_face_he = self.face_objs[face4.index].he
+        new_vertices_list = []
+        current = new_face_he
+
+        while True:
+            new_vertices_list.append(current.head.index)
+            current = current.next
+            if current == new_face_he:
+                break
+        swaped.append(new_vertices_list)
+        
+        
 
         
     
@@ -428,10 +512,7 @@ class SimplificationViewer(QtOpenGL.QGLWidget):
 
         # TODO: Objective 3: Undo / Redo by making and collecting collapse records 
         # helper
-        def add_affected_face(he: HalfEdge):
-            affected_faces.append(he.face)
-            print(he)
-
+        
             
 
         # TODO: You need to fill in the correct data for the CollapseRecord here
@@ -439,13 +520,60 @@ class SimplificationViewer(QtOpenGL.QGLWidget):
         old_faces = np.array([]) # Nx3 array of old face indices before the collapse
         new_faces = np.array([]) # Nx3 array of new face indices after the collapse
 
+
+        
+        affected_faces = afs
+        for i in affected_faces:
+            print("affected",i)
+        old_faces = np.array(ofs)
+
+        new_edge = new_vertex.he
+        
+        current = new_edge
+        while True:
+            vcurrent = current
+            vertices_list = []
+            while True:
+                vertices_list.append(vcurrent.head.index)
+                
+                vcurrent = vcurrent.next
+                if vcurrent == current:
+                    break
+            print("bug",vertices_list)
+            nfs.append(vertices_list)
+            current = current.next.twin
+            if current == start:
+                break  
+       
+
+        nfs = nfs + swaped
+        new_faces = np.array(nfs)
+
+
+        for i in new_faces:
+            print("debug1",i)
+        
+
+
+        
+
+
+
+
+
         # collapse record tells us how to move to the next LOD, or likewise, how to undo
         cr = CollapseRecord(affected_faces, old_faces, new_faces)
         self.collapse_history.append(cr)
         self.current_LOD += 1
         self.max_LOD += 1
 
+        
+
         cr.redo(self.faces) # THIS APPLIES THE COLLAPSE TO THE FACES numpy array for drawing with opengl
+        for i in self.faces:
+            print("faces", i)
+        for i in self.face_objs:
+            print("face_objs", i)     
         self.ibo.write(self.faces.flatten().astype('i4').tobytes()) # update the index buffer object
 
         # with everything all hooked up, compute the debug viz data for the new vertex

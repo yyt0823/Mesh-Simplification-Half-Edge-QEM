@@ -214,6 +214,7 @@ class CollapseRecord:
         for i, f in enumerate(self.affected_faces):
             f.M = None  # invalidate cached model matrix for text rendering
             faces[f.index, :] = self.new_indices[i]
+            print("xxxxxx",faces[f.index, :],"xxxxxxx",self.new_indices[i])
 
     def undo(self, faces: np.ndarray):
         """ Undo this collapse record on the given faces array. """
@@ -262,6 +263,6 @@ def findtwin(edge:HalfEdge, edgelist: list[HalfEdge]):
     head = edge.head
     tail = edge.tail()
     for e in edgelist:
-        if e.tail() == head and e.head == tail:
+        if e is not edge and e.tail() == head and e.head == tail:
             return e
     return None
