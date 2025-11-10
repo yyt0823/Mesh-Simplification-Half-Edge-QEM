@@ -189,7 +189,7 @@ class SimplificationViewer(QtOpenGL.QGLWidget):
         self.update_UI_callback()  # updates the LOD slider
 
     def update_half_edge_geometry(self):
-        print("-------",self.current_he)
+ 
         v0 = self.current_he.next.next.head.pos
         v1 = self.current_he.head.pos
         v2 = self.current_he.next.head.pos
@@ -304,9 +304,44 @@ class SimplificationViewer(QtOpenGL.QGLWidget):
     def collapse_will_be_bad(self, he: HalfEdge) -> bool:
         """ check if collapsing this half-edge will create problems (e.g., more than 2 common verts in the 1-rings) """
 
-        # TODO: Objective 4: Check if collapsing this half-edge will create problems
+  
+        def get_one_ring_neighbors(v: Vertex) -> set[int]:
+            """Get the set of vertex indices in the 1-ring of vertex v."""
+            neighbors = set()
+            if v.he is None:
+                return neighbors
+            
+            start = v.he
+            h = start
+            visited = 0
+            # Traverse around the vertex via (next -> twin)
+            while True:
+                tail_v = h.tail()
+                if tail_v is not None:
+                    neighbors.add(tail_v.index)
+                # Advance to next half-edge in the 1-ring
+                if h.next is None or h.next.twin is None:
+                    break
+                h = h.next.twin
+                visited += 1
+            return neighbors
 
-
+        v_head = he.head
+        v_tail = he.tail()
+        
+        if v_head is None or v_tail is None:
+            return True  # malformed edge; treat as bad
+        
+        # Get 1-rings of both vertices
+        one_ring_head = get_one_ring_neighbors(v_head)
+        one_ring_tail = get_one_ring_neighbors(v_tail)
+        
+        # Find common vertices in the 1-rings
+        common = one_ring_head.intersection(one_ring_tail)
+    
+        if len(common) > 2:
+            return True
+        
         return False
 
     def collapse(self, he: HalfEdge, vstar: glm.vec3, cost: float = 0.0) -> HalfEdge:
@@ -483,34 +518,6 @@ class SimplificationViewer(QtOpenGL.QGLWidget):
         
         
         
-        swap = []
-
-        
-
-
-        # swaped = []
-        # new_face_he = self.face_objs[face3.index].he
-        # new_vertices_list = []
-        # current = new_face_he
-
-        # while True:
-        #     new_vertices_list.append(current.head.index)
-        #     current = current.next
-        #     if current == new_face_he:
-        #         break
-        # swaped.append(new_vertices_list)
-            
-
-        # new_face_he = self.face_objs[face4.index].he
-        # new_vertices_list = []
-        # current = new_face_he
-
-        # while True:
-        #     new_vertices_list.append(current.head.index)
-        #     current = current.next
-        #     if current == new_face_he:
-        #         break
-        # swaped.append(new_vertices_list)
         
         
 
@@ -547,16 +554,16 @@ class SimplificationViewer(QtOpenGL.QGLWidget):
             if current == start:
                 break
         
-        print("this is affect face", affected_faces)
+
         old_faces = np.array(ofs)
 
         new_edge = new_vertex.he
-        print("this is sthe new edge",new_edge.head, new_edge.tail())
+ 
         
         current = new_edge
         while True:
             vcurrent = current
-            print("we are at",vcurrent)
+
             vertices_list = []
             while True:
                 vertices_list.append(vcurrent.head.index)
@@ -566,7 +573,7 @@ class SimplificationViewer(QtOpenGL.QGLWidget):
                     break
 
             nfs.append(vertices_list)
-            current = current.next.twinn
+            current = current.next.twin
             if current == start:
                 break  
        
@@ -593,14 +600,9 @@ class SimplificationViewer(QtOpenGL.QGLWidget):
 
         
 
-        print("NFS",new_faces )
-        print("OFS",ofs)
 
         cr.redo(self.faces) # THIS APPLIES THE COLLAPSE TO THE FACES numpy array for drawing with opengl
-        for i in self.faces:
-            print(i)
-        for i in self.face_objs:
-            print(i.index)
+       
 
         # with everything all hooked up, compute the debug viz data for the new vertex
         new_vertex.compute_debug_viz_data()

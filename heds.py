@@ -91,6 +91,28 @@ class Face:
         return f"~~ Face with Index {self.index}, Referencing HE {self.he} ~~"
 
 
+def compute_face_quadric(face: Face) -> glm.mat4:
+    """Compute and return the quadric error matrix for the given triangular face."""
+    he0 = face.he
+    he1 = he0.next
+    he2 = he1.next
+    v0 = he0.head.pos
+    v1 = he1.head.pos
+    v2 = he2.head.pos
+    n = glm.cross(v1 - v0, v2 - v0)
+    if glm.length(n) < 1e-12:
+        return glm.mat4(0)
+    n = glm.normalize(n)
+    d = -glm.dot(n, v0)
+    plane = glm.vec4(n.x, n.y, n.z, d)
+    return glm.outerProduct(plane, plane)
+
+
+def mat4_to_numpy(mat: glm.mat4) -> np.ndarray:
+    """Convert a glm.mat4 into a 4x4 numpy array (row-major)."""
+    return np.array([[float(mat[c][r]) for c in range(4)] for r in range(4)], dtype=float)
+
+
 class Vertex:
 
     def __init__(self, index: int, pos: np.ndarray, he: HalfEdge):
@@ -117,7 +139,20 @@ class Vertex:
 
         self.Q = glm.mat4(0)
 
-        # TODO: Objective 5: Compute the quadric matrix Q for this vertex
+        if self.he is None:
+            return
+
+        start = self.he
+        h = start
+        visited = 0
+        while True:
+            self.Q += compute_face_quadric(h.face)
+            if h.next is None or h.next.twin is None:
+                break
+            h = h.next.twin
+            visited += 1
+            if h == start or visited > 10000:
+                break
 
 
     def get_normal(self) -> glm.vec3:
@@ -180,11 +215,53 @@ class EdgeCollapseData:
         self.he.edge_collapse_data = self
         self.he.twin.edge_collapse_data = self
 
-        # TODO: Objective 5: Compute cost, optimal position, and quadric matrix for edge collapse
-        # TODO: change the following dummy values!
-        self.cost = 1
-        self.Q = glm.mat4(1)
-        self.v_opt = glm.vec3(0)
+        v_head = he.head
+        v_tail = he.tail()
+
+        # Combined quadric from both vertices
+        self.Q = v_head.Q + v_tail.Q
+
+        # Convert Q to numpy array for computations
+        Q_np = mat4_to_numpy(self.Q)
+        A = Q_np[:3, :3]
+        b = Q_np[:3, 3]
+
+        # Attempt to solve A * v = -b
+        v_candidates = []
+        solved = False
+        if np.linalg.cond(A) < 1e12:
+            try:
+                v_solution = -np.linalg.solve(A, b)
+                v_candidates.append(v_solution)
+                solved = True
+            except np.linalg.LinAlgError:
+                solved = False
+
+        if not solved:
+            # Use pseudoinverse as fallback
+            v_solution = -np.linalg.pinv(A) @ b
+            v_candidates.append(v_solution)
+
+        # Also consider endpoints and midpoint as fallback candidates
+        head_pos = np.array((v_head.pos.x, v_head.pos.y, v_head.pos.z), dtype=float)
+        tail_pos = np.array((v_tail.pos.x, v_tail.pos.y, v_tail.pos.z), dtype=float)
+        midpoint = 0.5 * (head_pos + tail_pos)
+        v_candidates.extend([head_pos, tail_pos, midpoint])
+
+        def evaluate_cost(Q_matrix: np.ndarray, position: np.ndarray) -> float:
+            vec = np.append(position, 1.0)
+            return float(vec @ Q_matrix @ vec)
+
+        best_pos = None
+        best_cost = np.inf
+        for candidate in v_candidates:
+            cost = evaluate_cost(Q_np, candidate)
+            if cost < best_cost:
+                best_cost = cost
+                best_pos = candidate
+
+        self.v_opt = glm.vec3(float(best_pos[0]), float(best_pos[1]), float(best_pos[2]))
+        self.cost = best_cost
 
     def __lt__(self, other):
         if self.cost == other.cost:
@@ -193,7 +270,7 @@ class EdgeCollapseData:
 
     def __eq__(self, other):
         return id(self) == id(other)  # equal cost is not enough, must be the same edge
-
+    
 
 class CollapseRecord:
     """ data structure to hold the data for an edge collapse operation, for LOD tracking.
@@ -206,11 +283,12 @@ class CollapseRecord:
 
     def redo(self, faces: np.ndarray):
         """ Apply this collapse record to the given faces array."""
+        for i in self.affected_faces:
+            print("this is affected face index", i.index,i.he.head,i.he.tail())
         for i, f in enumerate(self.affected_faces):
             f.M = None  # invalidate cached model matrix for text rendering
-            print("changing",faces[f.index, :] )
+            print("swaping face index at: ", f.index)
             faces[f.index, :] = self.new_indices[i]
-            print("taking ", i,f, "changing","to",self.new_indices[i])
             
            
 
