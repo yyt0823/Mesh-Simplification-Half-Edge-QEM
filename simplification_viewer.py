@@ -312,25 +312,23 @@ class SimplificationViewer(QtOpenGL.QGLWidget):
                 return neighbors
             
             start = v.he
-            h = start
-            visited = 0
+            current = start
             # Traverse around the vertex via (next -> twin)
             while True:
-                tail_v = h.tail()
+                tail_v = current.tail()
                 if tail_v is not None:
                     neighbors.add(tail_v.index)
                 # Advance to next half-edge in the 1-ring
-                if h.next is None or h.next.twin is None:
+                if current.next.twin is start:
                     break
-                h = h.next.twin
-                visited += 1
+                current = current.next.twin
             return neighbors
 
         v_head = he.head
         v_tail = he.tail()
         
         if v_head is None or v_tail is None:
-            return True  # malformed edge; treat as bad
+            return True  
         
         # Get 1-rings of both vertices
         one_ring_head = get_one_ring_neighbors(v_head)
