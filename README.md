@@ -1,6 +1,4 @@
-# Mesh Simplification — COMP557 A3
-
-**Yantian Yin — 261143026**
+# Mesh Simplification
 
 An interactive 3D mesh simplification tool using the **Half-Edge Data Structure (HEDS)** and **Quadric Error Metrics (QEM)**. Supports progressive LOD reduction on standard mesh files (bunny, cow, teapot, etc.) with a real-time OpenGL viewer.
 
@@ -16,22 +14,22 @@ An interactive 3D mesh simplification tool using the **Half-Edge Data Structure 
 
 ## What I Built
 
-### Q1 — Half-Edge Data Structure
+### Half-Edge Data Structure
 Built a full HEDS from scratch supporting:
 - `HalfEdge`, `Vertex`, `Face` classes with `head`, `twin`, `next`, `face` pointers
 - Ring-1 neighbour traversal (used extensively for collapse and quadric computation)
 - Face normals and centroids computed on demand
 
-### Q2 & Q3 — Edge Collapse
+### Edge Collapse
 Implemented edge collapse to merge two vertices `a` and `b` into a new vertex:
 1. **Pre-collapse**: traverse ring-1 of `(a, b)` and collect all inward half-edges and old face geometry
 2. **Collapse**: redirect all inward half-edges of `a` and `b` to the new merged vertex; re-twin the two pairs of boundary half-edges; swap deleted faces to the end of the face list
 3. **Post-collapse**: collect all neighbours of the new vertex as `affected_faces`; recompute `new_faces` geometry by traversing the new vertex's half-edge ring
 
-### Q4 — Link Condition (Topology Safety Check)
+### Link Condition (Topology Safety Check)
 Before collapsing an edge, checks that `a` and `b` share **at most 2** common neighbours — the link condition that prevents non-manifold topology from being created.
 
-### Q5 — Quadric Error Metric
+### Quadric Error Metric
 For each candidate edge collapse:
 - Computes per-vertex quadric `Q = Σ Kᵢ` where `Kᵢ = ppᵀ` for each neighbouring face plane
 - Solves `Av = -b` for the optimal new vertex position
@@ -39,7 +37,7 @@ For each candidate edge collapse:
 - Falls back to endpoints and midpoint as candidates; picks lowest-cost position
 - Stores optimal position and cost in `EdgeCollapseData`
 
-### Q6 — Sorted Edge List Maintenance
+### Sorted Edge List Maintenance
 After each collapse:
 - Removes `EdgeCollapseData` of all affected edges from the sorted priority list
 - Reinitialises `EdgeCollapseData` for all new edges and re-inserts them
