@@ -12,7 +12,7 @@ An interactive 3D mesh simplification tool using the **Half-Edge Data Structure 
 
 ---
 
-## What I Built
+## Implementation
 
 ### Half-Edge Data Structure
 Built a full HEDS from scratch supporting:
