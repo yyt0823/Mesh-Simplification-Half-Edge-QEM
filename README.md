@@ -4,6 +4,8 @@
 
 An interactive 3D mesh simplification tool using the **Half-Edge Data Structure (HEDS)** and **Quadric Error Metrics (QEM)**. Supports progressive LOD reduction on standard mesh files (bunny, cow, teapot, etc.) with a real-time OpenGL viewer.
 
+![Demo](demo.gif)
+
 > **Skills:** Python · OpenGL (ModernGL) · PyQt5 · Half-edge data structure · Quadric error metrics · Mesh geometry · GLSL shaders · Linear algebra (pseudo-inverse)
 
 ---
